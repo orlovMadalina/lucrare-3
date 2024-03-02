@@ -1,0 +1,70 @@
+#include <iostream>
+#include <fstream>
+#include <ctime>
+#include <map>
+#include <algorithm>
+#include <cctype>
+
+std::map<std::string, std::pair<time_t, std::string>> files;
+
+void commit() {
+    auto currentTime = std::time(0);
+    for (auto& file : files) {
+        file.second = {currentTime, "Clean"};
+    }
+    std::cout << "Committed at: " << std::asctime(std::localtime(&currentTime));
+}
+
+void printFileInfo(const std::string& filename) {
+    const auto& file = files[filename];
+    std::cout << "File: " << filename << ", Status: " << file.second;
+    if (file.first > std::time(0)) {
+        std::cout << " (modified after last commit)";
+    }
+    std::cout << std::endl;
+}
+
+void infoAll() {
+    for (const auto& file : files) {
+        printFileInfo(file.first);
+    }
+}
+
+void info(const std::string& filename) {
+    if (filename == "all") {
+        infoAll();
+    } else if (files.count(filename)) {
+        std::ifstream inputFile(filename);
+        std::string extension = filename.substr(filename.find_last_of(".") + 1);
+
+        if (extension == "txt") {
+            std::string line;
+            int lineCount = 0, wordCount = 0, charCount = 0;
+            while (std::getline(inputFile, line)) {
+                lineCount++;
+                charCount += line.size();
+                wordCount += std::count_if(line.begin(), line.end(), [](char c) { return !std::isspace(c); });
+            }
+            std::cout << "File: " << filename << ", Lines: " << lineCount
+                      << ", Words: " << wordCount << ", Characters: " << charCount << std::endl;
+        } else {
+            std::cout << "File: " << filename << ", Type: " << (extension == "png" || extension == "jpg" ? "Image" : "Code") << std::endl;
+        }
+        printFileInfo(filename);
+    } else {
+        std::cout << "File not found." << std::endl;
+    }
+}
+
+int main() {
+    files = {
+        {"file1.txt", {std::time(0), "Clean"}},
+        {"image.png", {std::time(0), "Clean"}},
+        {"code.py", {std::time(0), "Clean"}}
+    };
+
+    commit();
+    info("all");
+
+    return 0;
+}
