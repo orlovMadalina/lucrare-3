@@ -1,0 +1,41 @@
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <mutex>
+
+std::mutex inputMutex;
+
+void detectChanges() {
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lock(inputMutex);
+            std::cout << "Detectare: Modificare detectată la " << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << std::endl;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+}
+
+void userInputHandler() {
+    while (true) {
+        std::string userInput;
+        std::cin >> userInput;
+
+        if (userInput == "opreste"){
+            std::lock_guard<std::mutex> lock(inputMutex);
+            std::cout << "Oprire program." << std::endl;
+            break; 
+        }
+
+        
+    }
+}
+
+int main() {
+    std::thread detectionThread(detectChanges);
+    std::thread inputThread(userInputHandler);
+
+    detectionThread.join();
+    inputThread.join();
+
+    return 0;
+}
