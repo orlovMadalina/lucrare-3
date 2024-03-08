@@ -1,0 +1,118 @@
+#include <iostream>
+#include <vector>
+#include <filesystem>
+#include <ctime>
+
+namespace fs = std::filesystem;
+
+struct FileInfo {
+    std::string name;
+    std::string extension;
+    std::time_t createdDateTime;
+    std::time_t lastModifiedDateTime;
+    int imageWidth;
+    int imageHeight;
+    int numLines;
+    int numWords;
+    int numChars;
+    int numClasses;
+    int numMethods;
+};
+
+class FolderMonitor {
+private:
+    std::string folderPath;
+    std::time_t lastSnapshotTime;
+    std::vector<FileInfo> files;
+
+public:
+    FolderMonitor(const std::string& path) : folderPath(path), lastSnapshotTime(std::time(nullptr)) {}
+
+    void updateSnapshot() {
+        lastSnapshotTime = std::time(nullptr);
+        scanFolder();
+        std::cout << "Snapshot updated. Folder is now clean.\n";
+    }
+
+    void info(const std::string& fileName) {
+        auto fileIt = std::find_if(files.begin(), files.end(),
+            [&fileName](const FileInfo& file) { return file.name == fileName; });
+
+        if (fileIt != files.end()) {
+            printFileInfo(*fileIt);
+        } else {
+            std::cout << "File not found: " << fileName << "\n";
+        }
+    }
+
+    void state() {
+        std::cout << "Current Snapshot Time: " << std::asctime(std::localtime(&lastSnapshotTime));
+
+        for (const auto& file : files) {
+            std::cout << file.name << " - ";
+            if (file.lastModifiedDateTime > lastSnapshotTime) {
+                std::cout << "Modified\n";
+            } else {
+                std::cout << "Not modified\n";
+            }
+        }
+    }
+
+private:
+    void scanFolder() {
+        files.clear();
+        for (const auto& entry : fs::directory_iterator(folderPath)) {
+            if (entry.is_regular_file()) {
+                FileInfo file;
+                file.name = entry.path().filename().string();
+                file.extension = entry.path().extension().string();
+                file.createdDateTime = fs::last_write_time(entry.path());
+                file.lastModifiedDateTime = fs::last_write_time(entry.path());
+
+                // Additional logic for file type-specific information
+                // ...
+
+                files.push_back(file);
+            }
+        }
+    }
+
+    void printFileInfo(const FileInfo& file) {
+        std::cout << "Name: " << file.name << "\n";
+        std::cout << "Extension: " << file.extension << "\n";
+        std::cout << "Created Date Time: " << std::asctime(std::localtime(&file.createdDateTime));
+        std::cout << "Last Modified Date Time: " << std::asctime(std::localtime(&file.lastModifiedDateTime));
+
+        // Additional logic for file type-specific information
+        // ...
+
+        std::cout << "------------------------\n";
+    }
+};
+
+int main() {
+    FolderMonitor folderMonitor("/path/to/your/folder");
+
+    std::string userInput;
+    while (true) {
+        std::cout << "Enter command: ";
+        std::getline(std::cin, userInput);
+
+        if (userInput == "update") {
+            folderMonitor.updateSnapshot();
+        } else if (userInput == "info") {
+            std::string fileName;
+            std::cout << "Enter file name: ";
+            std::getline(std::cin, fileName);
+            folderMonitor.info(fileName);
+        } else if (userInput == "state") {
+            folderMonitor.state();
+        } else if (userInput == "exit") {
+            break;
+        } else {
+            std::cout << "Invalid command. Try again.\n";
+        }
+    }
+
+    return 0;
+}
