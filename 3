@@ -1,22 +1,16 @@
 #include <iostream>
 #include <vector>
-#include <filesystem>
 #include <ctime>
-
-namespace fs = std::filesystem;
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <algorithm>
 
 struct FileInfo {
     std::string name;
     std::string extension;
-    std::time_t createdDateTime;
     std::time_t lastModifiedDateTime;
-    int imageWidth;
-    int imageHeight;
-    int numLines;
-    int numWords;
-    int numChars;
-    int numClasses;
-    int numMethods;
 };
 
 class FolderMonitor {
@@ -50,43 +44,54 @@ public:
 
         for (const auto& file : files) {
             std::cout << file.name << " - ";
-            if (file.lastModifiedDateTime > lastSnapshotTime) {
-                std::cout << "Modified\n";
-            } else {
-                std::cout << "Not modified\n";
-            }
+            std::cout << (file.lastModifiedDateTime > lastSnapshotTime ? "Modified" : "Not modified") << "\n";
         }
     }
 
 private:
     void scanFolder() {
         files.clear();
-        for (const auto& entry : fs::directory_iterator(folderPath)) {
-            if (entry.is_regular_file()) {
-                FileInfo file;
-                file.name = entry.path().filename().string();
-                file.extension = entry.path().extension().string();
-                file.createdDateTime = fs::last_write_time(entry.path());
-                file.lastModifiedDateTime = fs::last_write_time(entry.path());
+        DIR* dir;
+        struct dirent* entry;
 
-                // Additional logic for file type-specific information
-                // ...
+        if ((dir = opendir(folderPath.c_str())) != nullptr) {
+            while ((entry = readdir(dir)) != nullptr) {
+                std::string filePath = folderPath + "/" + entry->d_name;
 
-                files.push_back(file);
+                struct stat fileStat;
+                if (stat(filePath.c_str(), &fileStat) == 0) {
+                    if (S_ISREG(fileStat.st_mode)) {
+                        FileInfo file;
+                        file.name = entry->d_name;
+                        file.extension = getFileExtension(file.name);
+                        file.lastModifiedDateTime = fileStat.st_mtime;
+
+                        // Additional logic for file type-specific information
+                        // ...
+
+                        files.push_back(file);
+                    }
+                }
             }
+            closedir(dir);
         }
     }
 
     void printFileInfo(const FileInfo& file) {
         std::cout << "Name: " << file.name << "\n";
         std::cout << "Extension: " << file.extension << "\n";
-        std::cout << "Created Date Time: " << std::asctime(std::localtime(&file.createdDateTime));
         std::cout << "Last Modified Date Time: " << std::asctime(std::localtime(&file.lastModifiedDateTime));
 
-        // Additional logic for file type-specific information
-        // ...
 
         std::cout << "------------------------\n";
+    }
+
+    std::string getFileExtension(const std::string& fileName) {
+        size_t dotPos = fileName.find_last_of(".");
+        if (dotPos != std::string::npos) {
+            return fileName.substr(dotPos + 1);
+        }
+        return "";
     }
 };
 
